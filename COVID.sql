@@ -58,12 +58,29 @@ WHERE continent is not null
 -- GROUP by date
 ORDER by 1,2
 
--- Join datasets
+-- Join datasets and use CTE
 -- Total vaccinations VS porpulation
-SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, sum(cast(vac.new_vaccinations as int)) OVER (PARTITION by dea.location ORDER by dea.location, dea.date) as rolling_vaccinated, max()
+WITH pop_vs_vac (continent, location, date, population, new_vaccinations, rolling_vaccinated)
+as
+(
+SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, sum(cast(vac.new_vaccinations as bigint)) OVER (PARTITION by dea.location ORDER by dea.location, dea.date) as rolling_vaccinated
 FROM PortfolioProject..CovidDeaths dea
 JOIN PortfolioProject..CovidVacinations vac
     ON dea.location = vac.location
     and dea.date = vac.date
 WHERE dea.continent is not null
-ORDER by 2,3
+)
+
+SELECT *, (rolling_vaccinated/population)*100
+FROM pop_vs_vac
+
+GO
+
+-- Create view for visualization
+CREATE VIEW perc_pop_vaccinated as
+SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, sum(cast(vac.new_vaccinations as bigint)) OVER (PARTITION by dea.location ORDER by dea.location, dea.date) as rolling_vaccinated
+FROM PortfolioProject..CovidDeaths dea
+JOIN PortfolioProject..CovidVacinations vac
+    ON dea.location = vac.location
+    and dea.date = vac.date
+WHERE dea.continent is not null
